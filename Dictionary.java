@@ -1,13 +1,5 @@
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-
-import java.util.TreeMap;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Set;
+import java.io.*;
+import java.util.*;
 
 public class Dictionary {
     private TreeMap<String, ArrayList<String>> dictionary;
@@ -106,6 +98,36 @@ public class Dictionary {
         }
 
         return false;
+    }
+
+    public String[] searchSubstringByKey(String subString) {
+        ArrayList<String> keys = new ArrayList<>();
+        Set<String> keySet = dictionary.keySet();
+
+        for (String key : keySet) {
+            if (key.toLowerCase().contains(subString.toLowerCase())) {
+                keys.add(key);
+            }
+        }
+
+        return keys.toArray(new String[keys.size()]);
+    }
+
+    public String[] searchSubstringByDefinition(String subString) {
+        ArrayList<String> keys = new ArrayList<>();
+        Set<String> keySet = dictionary.keySet();
+
+        for (String key : keySet) {
+            ArrayList<String> values = dictionary.get(key);
+
+            for (int i = 0; i < values.size(); i++) {
+                if (values.get(i).toLowerCase().contains(subString.toLowerCase())) {
+                    keys.add(key);
+                }
+            }
+        }
+
+        return keys.toArray(new String[keys.size()]);
     }
 
     public static void main(String args[]) {

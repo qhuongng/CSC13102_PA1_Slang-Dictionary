@@ -23,7 +23,7 @@ public class Dictionary {
     }
 
     // to display keys on JList
-    public String[] getKeyArray() {
+    public ArrayList<String> getKeyArray() {
         ArrayList<String> keys = new ArrayList<>();
         Set<String> keySet = dictionary.keySet();
 
@@ -31,7 +31,7 @@ public class Dictionary {
             keys.add(key);
         }
 
-        return keys.toArray(new String[keys.size()]);
+        return keys;
     }
 
     public String toString(String key, ArrayList<String> values) {
@@ -46,7 +46,7 @@ public class Dictionary {
         return output;
     }
 
-    public boolean exportToFile(String fname) {
+    public boolean exportSlangList(String fname) {
         try {
             BufferedWriter buffer = new BufferedWriter(new FileWriter(fname));
 
@@ -67,7 +67,7 @@ public class Dictionary {
         return false;
     }
 
-    public boolean importFromFile(String fname) {
+    public boolean importSlangList(String fname) {
         try {
             BufferedReader buffer = new BufferedReader(new FileReader(fname));
             String line = "";
@@ -75,16 +75,19 @@ public class Dictionary {
             while ((line = buffer.readLine()) != null) {
                 String[] data = line.split("\\`");
 
+                // lines that have no slang, or no definition are not imported
                 if (data.length < 2)
                     continue;
 
+                // first item in data is the slang
                 String key = data[0];
 
+                // second item in data is a string of all definitions, separated by |
                 String[] valueLine = data[1].split("\\|");
                 ArrayList<String> values = new ArrayList<>();
 
                 for (int i = 0; i < valueLine.length; i++) {
-                    values.add(valueLine[i]);
+                    values.add(valueLine[i].trim());
                 }
 
                 this.add(key, values);
@@ -100,7 +103,7 @@ public class Dictionary {
         return false;
     }
 
-    public String[] searchSubstringByKey(String subString) {
+    public ArrayList<String> searchSubstringByKey(String subString) {
         ArrayList<String> keys = new ArrayList<>();
         Set<String> keySet = dictionary.keySet();
 
@@ -110,10 +113,10 @@ public class Dictionary {
             }
         }
 
-        return keys.toArray(new String[keys.size()]);
+        return keys;
     }
 
-    public String[] searchSubstringByDefinition(String subString) {
+    public ArrayList<String> searchSubstringByDefinition(String subString) {
         ArrayList<String> keys = new ArrayList<>();
         Set<String> keySet = dictionary.keySet();
 
@@ -127,19 +130,10 @@ public class Dictionary {
             }
         }
 
-        return keys.toArray(new String[keys.size()]);
+        return keys;
     }
 
     public static void main(String args[]) {
-        // Dictionary d = new Dictionary();
-
-        // d.importFromFile("data/user_slang.txt");
-
-        // System.out.println(d.get("YMMV"));
-
-        String test = "HK`Hong Kong";
-        String[] data = test.split("\\`");
-        String[] a = data[1].split("\\|");
-        System.out.println(a.length);
+        // put test method calls here
     }
 }

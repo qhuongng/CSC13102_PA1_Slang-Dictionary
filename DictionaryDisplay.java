@@ -31,7 +31,7 @@ public class DictionaryDisplay extends JPanel {
         importHistory("data/history.txt");
 
         // retrieve all the slang entries to display on the search results pane
-        keyList = d.getKeyArray();
+        keyList = d.getKeyList();
 
         // display the imported search history on the history tab
         historyEntries = new JList<>();
@@ -112,13 +112,19 @@ public class DictionaryDisplay extends JPanel {
 
     // UI panel for the dictionary view
     protected JComponent dictPanel() {
-        // create a button panel with a button to delete the selected slang and another
-        // to edit the selected slang
+        // create a button to edit the selected slang
         JButton editButton = new JButton("Edit slang");
         editButton.setEnabled(false);
+        editButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                editSlangDialog();
+            }
+        });
+
+        // create a button to delete the selected slang
         JButton deleteButton = new JButton("Delete slang");
         deleteButton.setEnabled(false);
-
         deleteButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -135,7 +141,8 @@ public class DictionaryDisplay extends JPanel {
 
                     // show complete dialog
                     JOptionPane.showConfirmDialog(null,
-                            "Slang deleted successfully.", "Delete complete", JOptionPane.DEFAULT_OPTION);
+                            "Slang deleted successfully.", "Delete complete", JOptionPane.DEFAULT_OPTION,
+                            JOptionPane.PLAIN_MESSAGE);
                 }
             }
         });
@@ -191,10 +198,45 @@ public class DictionaryDisplay extends JPanel {
         slangInfoPane.add(definitionScrollPane, BorderLayout.CENTER);
 
         // create a search field with a search button
-        SearchField searchField = new SearchField("Enter search terms...");
+        PlaceholderField searchField = new PlaceholderField("Enter search terms...", true);
         searchField.setPreferredSize(new Dimension(225, 30));
         searchField.setBorder(BorderFactory.createCompoundBorder(searchField.getBorder(),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5)));
+
+        ActionListener searchFieldListener = new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                definition.setText("");
+
+                StyledDocument doc = definition.getStyledDocument();
+                SimpleAttributeSet sas = new SimpleAttributeSet();
+                StyleConstants.setForeground(sas, Color.BLUE);
+                StyleConstants.setBold(sas, true);
+                StyleConstants.setFontSize(sas, 24);
+
+                try {
+                    if (mode == "key") {
+                        searchResults.setSelectedIndex(0);
+                        String key = searchResults.getSelectedValue();
+                        displayDefinition(doc, sas, key, false);
+                    } else if (mode == "value") {
+                        int n = searchResults.getModel().getSize();
+
+                        for (int i = 0; i < n - 1; i++) {
+                            String entry = searchResults.getModel().getElementAt(i);
+                            displayDefinition(doc, sas, entry, true);
+                        }
+
+                        String entry = searchResults.getModel().getElementAt(n - 1);
+                        displayDefinition(doc, sas, entry, false);
+                    }
+                } catch (BadLocationException ble) {
+                    ble.printStackTrace();
+                }
+            }
+        };
+
+        searchField.addActionListener(searchFieldListener);
 
         // create a JComboBox to switch between search modes
         String[] searchModes = { "Search by slang", "Search by slang definition" };
@@ -223,32 +265,7 @@ public class DictionaryDisplay extends JPanel {
                     searchButton.setPreferredSize(new Dimension(30, 30));
                     searchButton.setMargin(new Insets(0, 0, 0, 0));
 
-                    searchButton.addActionListener(new ActionListener() {
-                        @Override
-                        public void actionPerformed(ActionEvent e) {
-                            definition.setText("");
-
-                            StyledDocument doc = definition.getStyledDocument();
-                            SimpleAttributeSet sas = new SimpleAttributeSet();
-                            StyleConstants.setForeground(sas, Color.BLUE);
-                            StyleConstants.setBold(sas, true);
-                            StyleConstants.setFontSize(sas, 24);
-
-                            try {
-                                int n = searchResults.getModel().getSize();
-
-                                for (int i = 0; i < n - 1; i++) {
-                                    String entry = searchResults.getModel().getElementAt(i);
-                                    displayDefinition(doc, sas, entry, true);
-                                }
-
-                                String entry = searchResults.getModel().getElementAt(n - 1);
-                                displayDefinition(doc, sas, entry, false);
-                            } catch (BadLocationException ble) {
-                                ble.printStackTrace();
-                            }
-                        }
-                    });
+                    searchButton.addActionListener(searchFieldListener);
 
                     searchFieldPane.add(searchButton, BorderLayout.EAST);
                     searchFieldPane.revalidate();
@@ -298,6 +315,7 @@ public class DictionaryDisplay extends JPanel {
         // the slang list
         JButton addButton = new JButton("Add slang");
         JButton resetButton = new JButton("Reset");
+
         resetButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -307,14 +325,31 @@ public class DictionaryDisplay extends JPanel {
 
                 if (input == 0) {
                     // OK
+                    // clear dictionary, key list and search result list
+                    d.clear();
+                    keyList.clear();
+                    searchResults.setListData(keyList.toArray(new String[keyList.size()]));
+
+                    // clear search field and definition pane
+                    searchField.clear();
+                    definition.setText("");
+
+                    // import from the original slang list
                     d.importSlangList("data/slang.txt");
-                    keyList = d.getKeyArray();
+                    keyList = d.getKeyList();
                     searchResults.setListData(keyList.toArray(new String[keyList.size()]));
 
                     // show complete dialog
                     JOptionPane.showConfirmDialog(null,
                             "Original slang list restored successfully.", "Reset complete", JOptionPane.DEFAULT_OPTION);
                 }
+            }
+        });
+
+        addButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                addSlangDialog();
             }
         });
 
@@ -381,7 +416,8 @@ public class DictionaryDisplay extends JPanel {
 
                     // show complete dialog
                     JOptionPane.showConfirmDialog(null,
-                            "Search history cleared successfully.", "History cleared", JOptionPane.DEFAULT_OPTION);
+                            "Search history cleared successfully.", "History cleared", JOptionPane.DEFAULT_OPTION,
+                            JOptionPane.PLAIN_MESSAGE);
                 }
             }
         });
@@ -398,6 +434,233 @@ public class DictionaryDisplay extends JPanel {
         mainPane.add(rightPane, BorderLayout.EAST);
 
         return mainPane;
+    }
+
+    public void addSlangDialog() {
+        // set up the dialog
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Add a new slang");
+
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.setResizable(false);
+
+        JButton button = new JButton("OK");
+        button.setEnabled(false);
+
+        // create text fields
+        PlaceholderField keyText = new PlaceholderField("Slang entry", false);
+        keyText.setPreferredSize(new Dimension(200, 30));
+        PlaceholderArea valueText = new PlaceholderArea("Separate multiple definitions by ;", 3, 30);
+        valueText.setLineWrap(true);
+        valueText.setWrapStyleWord(true);
+
+        JScrollPane valueTextScrollPane = new JScrollPane(valueText);
+
+        /**
+         * Adapted from @bobasti on StackOverflow:
+         * https://stackoverflow.com/a/35973147
+         * 
+         * Add a DocumentListener to JTextFields to enable the OK button if all fields
+         * are filled.
+         */
+        DocumentListener fieldListener = new DocumentListener() {
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                changedUpdate(e);
+            }
+
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                changedUpdate(e);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                boolean emptyKeyField = (keyText.getText().isEmpty()
+                        || keyText.getText().equals(keyText.getPlaceholder())
+                        || keyText.getText() == null);
+                boolean emptyValueField = (valueText.getText().isEmpty()
+                        || valueText.getText().equals(valueText.getPlaceholder())
+                        || valueText.getText() == null);
+
+                if (!emptyKeyField && !emptyValueField) {
+                    button.setEnabled(true);
+                } else {
+                    button.setEnabled(false);
+                }
+            }
+        };
+
+        keyText.getDocument().addDocumentListener(fieldListener);
+        valueText.getDocument().addDocumentListener(fieldListener);
+        /* end of adapted snippet */
+
+        button.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent ae) {
+                // get the text input from text fields
+                String key = keyText.getText().trim();
+                String valueLine = valueText.getText().trim();
+                String[] values = valueLine.split("\\;");
+
+                dialog.setVisible(false);
+                dialog.dispose();
+
+                // slang already exists
+                if (d.contains(key)) {
+                    int input = JOptionPane.showConfirmDialog(null,
+                            "This slang already exists. Do you want to update its definition?",
+                            "Confirm slang update", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+                    if (input == 0) {
+                        // OK
+                        ArrayList<String> defList = d.get(key);
+                        System.out.println(defList.size());
+
+                        for (String value : values) {
+                            defList.add(value.trim());
+                        }
+
+                        d.replace(key, defList);
+
+                        JOptionPane.showConfirmDialog(null,
+                                "Slang updated successfully.", "Update slang complete",
+                                JOptionPane.DEFAULT_OPTION,
+                                JOptionPane.PLAIN_MESSAGE);
+                    }
+                } else {
+                    d.add(key.toUpperCase(), new ArrayList<String>(Arrays.asList(values)));
+                    keyList = d.getKeyList();
+                    searchResults.setListData(keyList.toArray(new String[keyList.size()]));
+                }
+
+                // show complete dialog
+                JOptionPane.showConfirmDialog(null,
+                        "Slang added successfully.", "Add slang complete", JOptionPane.DEFAULT_OPTION,
+                        JOptionPane.PLAIN_MESSAGE);
+            }
+        });
+
+        // create labels for the text fields
+        JLabel keyLabel = new JLabel("Slang", JLabel.LEFT);
+        JLabel valueLabel = new JLabel("Definition", JLabel.LEFT);
+
+        JPanel keyPane = new JPanel(new BorderLayout(0, 5));
+        keyPane.add(keyLabel, BorderLayout.NORTH);
+        keyPane.add(keyText, BorderLayout.CENTER);
+
+        JPanel valuePane = new JPanel(new BorderLayout(0, 5));
+        valuePane.add(valueLabel, BorderLayout.NORTH);
+        valuePane.add(valueTextScrollPane, BorderLayout.CENTER);
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        panel.add(keyPane);
+        panel.add(Box.createRigidArea(new Dimension(0, 10)));
+        panel.add(valuePane);
+
+        // add the panel to the dialog window
+        dialog.add(panel, BorderLayout.CENTER);
+        dialog.add(button, BorderLayout.SOUTH);
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        dialog.setVisible(true);
+    }
+
+    public void editSlangDialog() {
+        // set up the dialog
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Edit slang");
+
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.setResizable(false);
+
+        JButton button = new JButton("OK");
+
+        // retrieve the slang and its definition
+        String key = searchResults.getSelectedValue();
+        ArrayList<String> values = d.get(key);
+        String valueLine = "";
+
+        for (int i = 0; i < values.size() - 1; i++) {
+            valueLine += values.get(i) + ";";
+        }
+
+        valueLine += values.get(values.size() - 1);
+
+        // create text field
+        JTextArea valueText = new JTextArea(valueLine, 3, 30);
+        valueText.setLineWrap(true);
+        valueText.setWrapStyleWord(true);
+
+        JScrollPane valueTextScrollPane = new JScrollPane(valueText);
+
+        valueText.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                changedUpdate(e);
+            }
+
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                changedUpdate(e);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                if (valueText.getText().isEmpty() || valueText.getText() == null) {
+                    button.setEnabled(false);
+                } else {
+                    button.setEnabled(true);
+                }
+            }
+        });
+
+        button.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent ae) {
+                // get the text input from text field
+                String valueLine = valueText.getText().trim();
+                String[] values = valueLine.split("\\;");
+
+                dialog.setVisible(false);
+                dialog.dispose();
+
+                ArrayList<String> defList = new ArrayList<>();
+                for (String value : values) {
+                    defList.add(value.trim());
+                }
+
+                d.replace(key, defList);
+                searchResults.clearSelection();
+                searchResults.setSelectedValue(key, true);
+
+                // show complete dialog
+                JOptionPane.showConfirmDialog(null,
+                        "Slang edited successfully.", "Edit slang complete", JOptionPane.DEFAULT_OPTION,
+                        JOptionPane.PLAIN_MESSAGE);
+            }
+        });
+
+        // create a label for the text field
+        JLabel valueLabel = new JLabel("Edit definitions (separate defitions with ;)", JLabel.LEFT);
+
+        JPanel valuePane = new JPanel(new BorderLayout(0, 5));
+        valuePane.add(valueLabel, BorderLayout.NORTH);
+        valuePane.add(valueTextScrollPane, BorderLayout.CENTER);
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        panel.add(valuePane);
+
+        // add the panel to the dialog window
+        dialog.add(panel, BorderLayout.CENTER);
+        dialog.add(button, BorderLayout.SOUTH);
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        dialog.setVisible(true);
     }
 
     // UI panel for the games view
@@ -524,11 +787,11 @@ public class DictionaryDisplay extends JPanel {
         });
     }
 
-    class SearchField extends JTextField implements FocusListener, DocumentListener {
+    class PlaceholderField extends JTextField implements FocusListener, DocumentListener {
         private final String placeholder;
         private boolean showPlaceholder;
 
-        public SearchField(final String placeholder) {
+        public PlaceholderField(final String placeholder, boolean isSearchField) {
             super(placeholder);
 
             this.setForeground(Color.GRAY);
@@ -536,7 +799,14 @@ public class DictionaryDisplay extends JPanel {
             this.showPlaceholder = true;
 
             super.addFocusListener(this);
-            super.getDocument().addDocumentListener(this);
+
+            if (isSearchField) {
+                super.getDocument().addDocumentListener(this);
+            }
+        }
+
+        public String getPlaceholder() {
+            return this.placeholder;
         }
 
         // override methods for FocusListener
@@ -552,6 +822,14 @@ public class DictionaryDisplay extends JPanel {
         @Override
         public void focusLost(FocusEvent e) {
             if (this.getText().isEmpty()) {
+                this.setForeground(Color.GRAY);
+                super.setText(placeholder);
+                showPlaceholder = true;
+            }
+        }
+
+        public void clear() {
+            if (this.getText() != placeholder) {
                 this.setForeground(Color.GRAY);
                 super.setText(placeholder);
                 showPlaceholder = true;
@@ -599,4 +877,57 @@ public class DictionaryDisplay extends JPanel {
             searchResults.setListData(results.toArray(new String[results.size()]));
         }
     }
+
+    /**
+     * Adapted from @Bart Kiers on StackOverflow:
+     * https://stackoverflow.com/a/1739037
+     * 
+     * Create a JTextField with a placeholder. If the field is marked as a search
+     * field, add a DocumentLister to it to update the search results JList when the
+     * field's value changes.
+     */
+    class PlaceholderArea extends JTextArea implements FocusListener {
+        private final String placeholder;
+        private boolean showPlaceholder;
+
+        public PlaceholderArea(final String placeholder, int rows, int cols) {
+            super(placeholder, rows, cols);
+
+            this.setForeground(Color.GRAY);
+            this.placeholder = placeholder;
+            this.showPlaceholder = true;
+
+            super.addFocusListener(this);
+        }
+
+        public String getPlaceholder() {
+            return this.placeholder;
+        }
+
+        // override methods for FocusListener
+        @Override
+        public void focusGained(FocusEvent e) {
+            if (this.getText().isEmpty()) {
+                this.setForeground(Color.BLACK);
+                super.setText("");
+                showPlaceholder = false;
+            }
+        }
+
+        @Override
+        public void focusLost(FocusEvent e) {
+            if (this.getText().isEmpty()) {
+                this.setForeground(Color.GRAY);
+                super.setText(placeholder);
+                showPlaceholder = true;
+            }
+        }
+
+        // override getText method for JTextComponent
+        @Override
+        public String getText() {
+            return showPlaceholder ? "" : super.getText();
+        }
+    }
+    /* end of adapted snippet */
 }

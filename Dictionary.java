@@ -22,8 +22,20 @@ public class Dictionary {
         dictionary.remove(key);
     }
 
+    public boolean contains(String key) {
+        return dictionary.containsKey(key);
+    }
+
+    public void clear() {
+        dictionary.clear();
+    }
+
+    public void replace(String key, ArrayList<String> values) {
+        dictionary.replace(key, values);
+    }
+
     // to display keys on JList
-    public ArrayList<String> getKeyArray() {
+    public ArrayList<String> getKeyList() {
         ArrayList<String> keys = new ArrayList<>();
         Set<String> keySet = dictionary.keySet();
 
@@ -80,7 +92,7 @@ public class Dictionary {
                     continue;
 
                 // first item in data is the slang
-                String key = data[0];
+                String key = data[0].trim();
 
                 // second item in data is a string of all definitions, separated by |
                 String[] valueLine = data[1].split("\\|");

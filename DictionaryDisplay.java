@@ -17,7 +17,14 @@ public class DictionaryDisplay extends JPanel {
     private JList<String> historyEntries;
     private ArrayList<String> keyList;
     private static Deque<String> history;
-    private String mode;
+    private String searchMode;
+    private String gameMode;
+
+    private Random random = new Random();
+
+    // the JFrame is declared as an attribute to be used as the parent component for
+    // dialogs
+    private static JFrame frame;
 
     // main constructor
     public DictionaryDisplay() {
@@ -37,8 +44,9 @@ public class DictionaryDisplay extends JPanel {
         historyEntries = new JList<>();
         historyEntries.setListData(history.toArray(new String[history.size()]));
 
-        // initialize the default search mode
-        mode = "key";
+        // initialize the default search mode and minigame mode
+        searchMode = "key";
+        gameMode = "key";
 
         // create a tabbed pane as main component
         JTabbedPane tabs = new JTabbedPane();
@@ -50,13 +58,13 @@ public class DictionaryDisplay extends JPanel {
         tabs.setMnemonicAt(0, KeyEvent.VK_1);
 
         JComponent daily = makeTextPanel("Random slang");
-        tabs.addTab("Random Slang", null, daily,
+        tabs.addTab("Random slang", null, daily,
                 "View a random slang from the dictionary");
         tabs.setMnemonicAt(0, KeyEvent.VK_2);
 
         JComponent games = gamesPanel();
         tabs.addTab("Minigames", null, games,
-                "Play slang minigames");
+                "Guess the given slang's definition, or guess the slang from the given definition");
         tabs.setMnemonicAt(0, KeyEvent.VK_3);
 
         JComponent history = historyPanel();
@@ -71,7 +79,7 @@ public class DictionaryDisplay extends JPanel {
     }
 
     // export the search history to a text file
-    protected static boolean exportHistory(String fname) {
+    private static boolean exportHistory(String fname) {
         try {
             BufferedWriter buffer = new BufferedWriter(new FileWriter(fname));
 
@@ -91,7 +99,7 @@ public class DictionaryDisplay extends JPanel {
     }
 
     // import the search history from a text file
-    protected boolean importHistory(String fname) {
+    private boolean importHistory(String fname) {
         try {
             BufferedReader buffer = new BufferedReader(new FileReader(fname));
             String line = "";
@@ -111,9 +119,10 @@ public class DictionaryDisplay extends JPanel {
     }
 
     // UI panel for the dictionary view
-    protected JComponent dictPanel() {
+    private JComponent dictPanel() {
         // create a button to edit the selected slang
         JButton editButton = new JButton("Edit slang");
+        editButton.setFocusable(false);
         editButton.setEnabled(false);
         editButton.addActionListener(new ActionListener() {
             @Override
@@ -124,12 +133,13 @@ public class DictionaryDisplay extends JPanel {
 
         // create a button to delete the selected slang
         JButton deleteButton = new JButton("Delete slang");
+        deleteButton.setFocusable(false);
         deleteButton.setEnabled(false);
         deleteButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 // show confirm dialog
-                int input = JOptionPane.showConfirmDialog(null, "Do you want to delete this slang?",
+                int input = JOptionPane.showConfirmDialog(frame, "Do you want to delete this slang?",
                         "Confirm slang delete", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
                 if (input == 0) {
@@ -140,7 +150,7 @@ public class DictionaryDisplay extends JPanel {
                     searchResults.setListData(keyList.toArray(new String[keyList.size()]));
 
                     // show complete dialog
-                    JOptionPane.showConfirmDialog(null,
+                    JOptionPane.showConfirmDialog(frame,
                             "Slang deleted successfully.", "Delete complete", JOptionPane.DEFAULT_OPTION,
                             JOptionPane.PLAIN_MESSAGE);
                 }
@@ -215,11 +225,11 @@ public class DictionaryDisplay extends JPanel {
                 StyleConstants.setFontSize(sas, 24);
 
                 try {
-                    if (mode == "key") {
+                    if (searchMode == "key") {
                         searchResults.setSelectedIndex(0);
                         String key = searchResults.getSelectedValue();
                         displayDefinition(doc, sas, key, false);
-                    } else if (mode == "value") {
+                    } else if (searchMode == "value") {
                         int n = searchResults.getModel().getSize();
 
                         for (int i = 0; i < n - 1; i++) {
@@ -241,6 +251,7 @@ public class DictionaryDisplay extends JPanel {
         // create a JComboBox to switch between search modes
         String[] searchModes = { "Search by slang", "Search by slang definition" };
         JComboBox<String> searchModeSelector = new JComboBox<>(searchModes);
+        searchModeSelector.setFocusable(false);
 
         // create a JPanel to hold the search field, the mode selector and a search
         // button if searching by definition
@@ -256,12 +267,13 @@ public class DictionaryDisplay extends JPanel {
                 String searchMode = (String) cb.getSelectedItem();
 
                 if (searchMode.equals("Search by slang")) {
-                    mode = "key";
+                    searchMode = "key";
                 } else if (searchMode.equals("Search by slang definition")) {
-                    mode = "value";
+                    searchMode = "value";
 
                     // add a search button
                     JButton searchButton = new JButton("Go");
+                    searchButton.setFocusable(false);
                     searchButton.setPreferredSize(new Dimension(30, 30));
                     searchButton.setMargin(new Insets(0, 0, 0, 0));
 
@@ -295,13 +307,13 @@ public class DictionaryDisplay extends JPanel {
                         if (key == null)
                             return;
 
-                        if (mode == "key") {
+                        if (searchMode == "key") {
                             displayDefinition(doc, sas, key, false);
 
                             // enable edit and delete buttons
                             editButton.setEnabled(true);
                             deleteButton.setEnabled(true);
-                        } else if (mode == "value") {
+                        } else if (searchMode == "value") {
 
                         }
                     } catch (BadLocationException ble) {
@@ -314,13 +326,21 @@ public class DictionaryDisplay extends JPanel {
         // create a button panel with a button to add new slangs and another to reset
         // the slang list
         JButton addButton = new JButton("Add slang");
-        JButton resetButton = new JButton("Reset");
+        addButton.setFocusable(false);
+        addButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                addSlangDialog();
+            }
+        });
 
+        JButton resetButton = new JButton("Reset");
+        resetButton.setFocusable(false);
         resetButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 // show confirm dialog
-                int input = JOptionPane.showConfirmDialog(null, "Do you want to restore the original slang list?",
+                int input = JOptionPane.showConfirmDialog(frame, "Do you want to restore the original slang list?",
                         "Confirm slang list reset", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
                 if (input == 0) {
@@ -340,16 +360,9 @@ public class DictionaryDisplay extends JPanel {
                     searchResults.setListData(keyList.toArray(new String[keyList.size()]));
 
                     // show complete dialog
-                    JOptionPane.showConfirmDialog(null,
+                    JOptionPane.showConfirmDialog(frame,
                             "Original slang list restored successfully.", "Reset complete", JOptionPane.DEFAULT_OPTION);
                 }
-            }
-        });
-
-        addButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                addSlangDialog();
             }
         });
 
@@ -374,7 +387,7 @@ public class DictionaryDisplay extends JPanel {
     }
 
     // display slang definitions
-    protected void displayDefinition(Document doc, SimpleAttributeSet sas, String key, boolean multiple)
+    private void displayDefinition(Document doc, SimpleAttributeSet sas, String key, boolean multiple)
             throws BadLocationException {
         doc.insertString(doc.getLength(), key + "\n", sas);
         doc.insertString(doc.getLength(), "_________________________\n", null);
@@ -399,44 +412,7 @@ public class DictionaryDisplay extends JPanel {
         historyEntries.setListData(history.toArray(new String[history.size()]));
     }
 
-    // UI panel for the search history view
-    protected JComponent historyPanel() {
-        JButton clearButton = new JButton("Clear history");
-        clearButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // show confirm dialog
-                int input = JOptionPane.showConfirmDialog(null, "Do you want to clear search history?",
-                        "Confirm clear history", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-
-                if (input == 0) {
-                    // OK
-                    history.clear();
-                    historyEntries.setListData(history.toArray(new String[history.size()]));
-
-                    // show complete dialog
-                    JOptionPane.showConfirmDialog(null,
-                            "Search history cleared successfully.", "History cleared", JOptionPane.DEFAULT_OPTION,
-                            JOptionPane.PLAIN_MESSAGE);
-                }
-            }
-        });
-
-        JPanel rightPane = new JPanel(new BorderLayout());
-        rightPane.add(clearButton, BorderLayout.SOUTH);
-
-        // create a scroll pane for the history pane
-        JScrollPane historyScrollPane = new JScrollPane(historyEntries);
-
-        JPanel mainPane = new JPanel(new BorderLayout(10, 10));
-        mainPane.setBorder(new EmptyBorder(10, 10, 10, 10));
-        mainPane.add(historyScrollPane, BorderLayout.CENTER);
-        mainPane.add(rightPane, BorderLayout.EAST);
-
-        return mainPane;
-    }
-
-    public void addSlangDialog() {
+    private void addSlangDialog() {
         // set up the dialog
         JDialog dialog = new JDialog();
         dialog.setTitle("Add a new slang");
@@ -445,6 +421,7 @@ public class DictionaryDisplay extends JPanel {
         dialog.setResizable(false);
 
         JButton button = new JButton("OK");
+        button.setFocusable(false);
         button.setEnabled(false);
 
         // create text fields
@@ -507,7 +484,7 @@ public class DictionaryDisplay extends JPanel {
 
                 // slang already exists
                 if (d.contains(key)) {
-                    int input = JOptionPane.showConfirmDialog(null,
+                    int input = JOptionPane.showConfirmDialog(frame,
                             "This slang already exists. Do you want to update its definition?",
                             "Confirm slang update", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
@@ -522,7 +499,7 @@ public class DictionaryDisplay extends JPanel {
 
                         d.replace(key, defList);
 
-                        JOptionPane.showConfirmDialog(null,
+                        JOptionPane.showConfirmDialog(frame,
                                 "Slang updated successfully.", "Update slang complete",
                                 JOptionPane.DEFAULT_OPTION,
                                 JOptionPane.PLAIN_MESSAGE);
@@ -534,7 +511,7 @@ public class DictionaryDisplay extends JPanel {
                 }
 
                 // show complete dialog
-                JOptionPane.showConfirmDialog(null,
+                JOptionPane.showConfirmDialog(frame,
                         "Slang added successfully.", "Add slang complete", JOptionPane.DEFAULT_OPTION,
                         JOptionPane.PLAIN_MESSAGE);
             }
@@ -542,7 +519,7 @@ public class DictionaryDisplay extends JPanel {
 
         // create labels for the text fields
         JLabel keyLabel = new JLabel("Slang", JLabel.LEFT);
-        JLabel valueLabel = new JLabel("Definition", JLabel.LEFT);
+        JLabel valueLabel = new JLabel("Definition(s)", JLabel.LEFT);
 
         JPanel keyPane = new JPanel(new BorderLayout(0, 5));
         keyPane.add(keyLabel, BorderLayout.NORTH);
@@ -564,11 +541,11 @@ public class DictionaryDisplay extends JPanel {
         dialog.add(button, BorderLayout.SOUTH);
 
         dialog.pack();
-        dialog.setLocationRelativeTo(null);
+        dialog.setLocationRelativeTo(frame);
         dialog.setVisible(true);
     }
 
-    public void editSlangDialog() {
+    private void editSlangDialog() {
         // set up the dialog
         JDialog dialog = new JDialog();
         dialog.setTitle("Edit slang");
@@ -577,6 +554,7 @@ public class DictionaryDisplay extends JPanel {
         dialog.setResizable(false);
 
         JButton button = new JButton("OK");
+        button.setFocusable(false);
 
         // retrieve the slang and its definition
         String key = searchResults.getSelectedValue();
@@ -636,14 +614,14 @@ public class DictionaryDisplay extends JPanel {
                 searchResults.setSelectedValue(key, true);
 
                 // show complete dialog
-                JOptionPane.showConfirmDialog(null,
+                JOptionPane.showConfirmDialog(frame,
                         "Slang edited successfully.", "Edit slang complete", JOptionPane.DEFAULT_OPTION,
                         JOptionPane.PLAIN_MESSAGE);
             }
         });
 
         // create a label for the text field
-        JLabel valueLabel = new JLabel("Edit definitions (separate defitions with ;)", JLabel.LEFT);
+        JLabel valueLabel = new JLabel("Edit definition(s), separating multiple definitions by ;", JLabel.LEFT);
 
         JPanel valuePane = new JPanel(new BorderLayout(0, 5));
         valuePane.add(valueLabel, BorderLayout.NORTH);
@@ -659,15 +637,74 @@ public class DictionaryDisplay extends JPanel {
         dialog.add(button, BorderLayout.SOUTH);
 
         dialog.pack();
-        dialog.setLocationRelativeTo(null);
+        dialog.setLocationRelativeTo(frame);
         dialog.setVisible(true);
     }
 
+    // UI panel for the search history view
+    private JComponent historyPanel() {
+        JButton clearButton = new JButton("Clear history");
+        clearButton.setFocusable(false);
+        clearButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // show confirm dialog
+                int input = JOptionPane.showConfirmDialog(frame, "Do you want to clear search history?",
+                        "Confirm clear history", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+                if (input == 0) {
+                    // OK
+                    history.clear();
+                    historyEntries.setListData(history.toArray(new String[history.size()]));
+
+                    // show complete dialog
+                    JOptionPane.showConfirmDialog(frame,
+                            "Search history cleared successfully.", "History cleared", JOptionPane.DEFAULT_OPTION,
+                            JOptionPane.PLAIN_MESSAGE);
+                }
+            }
+        });
+
+        JPanel rightPane = new JPanel(new BorderLayout());
+        rightPane.add(clearButton, BorderLayout.SOUTH);
+
+        // create a scroll pane for the history pane
+        JScrollPane historyScrollPane = new JScrollPane(historyEntries);
+
+        JPanel mainPane = new JPanel(new BorderLayout(10, 10));
+        mainPane.setBorder(new EmptyBorder(10, 10, 10, 10));
+        mainPane.add(historyScrollPane, BorderLayout.CENTER);
+        mainPane.add(rightPane, BorderLayout.EAST);
+
+        return mainPane;
+    }
+
     // UI panel for the games view
-    protected JComponent gamesPanel() {
+    private JComponent gamesPanel() {
+        // create buttons to display answers
+        ArrayList<JButton> answerButtons = new ArrayList<>();
+
+        for (int i = 0; i < 4; i++) {
+            answerButtons.add(new JButton("Answer" + " " + (i + 1)));
+        }
+
+        for (JButton answerButton : answerButtons) {
+            answerButton.setEnabled(false);
+        }
+
+        // create a JTextPane to display the game's question
+        JTextField questionField = new JTextField();
+        questionField.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+        questionField.setBorder(BorderFactory.createCompoundBorder(questionField.getBorder(),
+                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
+        questionField.setEditable(false);
+        questionField.setBackground(Color.WHITE);
+        questionField.setHorizontalAlignment(JTextField.CENTER);
+
         // create a JComboBox to switch between game modes
         String[] gameModes = { "Guess the slang", "Guess the definition" };
         JComboBox<String> gameModeSelector = new JComboBox<>(gameModes);
+        gameModeSelector.setFocusable(false);
         gameModeSelector.setMaximumSize(new Dimension(225, 30));
 
         ActionListener cbListener = new ActionListener() {
@@ -675,36 +712,40 @@ public class DictionaryDisplay extends JPanel {
             public void actionPerformed(ActionEvent e) {
                 @SuppressWarnings("unchecked")
                 JComboBox<String> cb = (JComboBox<String>) e.getSource();
-                String gameMode = (String) cb.getSelectedItem();
+                String selectedGameMode = (String) cb.getSelectedItem();
+
                 // TODO: handle game mode switching
+                if (selectedGameMode.equals("Guess the slang")) {
+                    gameMode = "key";
+                } else if (selectedGameMode.equals("Guess the definition")) {
+                    gameMode = "value";
+                }
+
+                newGame(gameMode, questionField, answerButtons);
             }
         };
 
         gameModeSelector.addActionListener(cbListener);
 
         JButton newButton = new JButton("New question");
+        newButton.setFocusable(false);
         newButton.setMaximumSize(new Dimension(225, 30));
+        newButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                newGame(gameMode, questionField, answerButtons);
+            }
+        });
 
         // create a game control pane to contain the components above
         JPanel gameControlPane = new JPanel();
         gameControlPane.add(newButton);
 
-        // create a JTextPane to display the game's question
-        JTextPane question = new JTextPane();
-        question.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
-        question.setEditable(false);
-
         // create a panel to contain the JTextPane and the game control pane
         JPanel topPane = new JPanel(new BorderLayout(10, 10));
         topPane.add(gameModeSelector, BorderLayout.NORTH);
-        topPane.add(question, BorderLayout.CENTER);
+        topPane.add(questionField, BorderLayout.CENTER);
         topPane.add(gameControlPane, BorderLayout.EAST);
-
-        // create a button panel to contain buttons for answers
-        JButton option1 = new JButton("Option 1");
-        JButton option2 = new JButton("Option 2");
-        JButton option3 = new JButton("Option 3");
-        JButton option4 = new JButton("Option 4");
 
         GridLayout answersPaneLayout = new GridLayout(2, 2);
         answersPaneLayout.setHgap(10);
@@ -712,10 +753,10 @@ public class DictionaryDisplay extends JPanel {
 
         JPanel answersPane = new JPanel(answersPaneLayout);
         answersPane.setPreferredSize(new Dimension(900, 150));
-        answersPane.add(option1);
-        answersPane.add(option2);
-        answersPane.add(option3);
-        answersPane.add(option4);
+
+        for (JButton button : answerButtons) {
+            answersPane.add(button);
+        }
 
         // create a main panel to contain the two panels
         JPanel mainPane = new JPanel(new BorderLayout(10, 10));
@@ -726,7 +767,152 @@ public class DictionaryDisplay extends JPanel {
         return mainPane;
     }
 
-    protected JComponent makeTextPanel(String text) {
+    private void newGame(String mode, JTextField questionField, ArrayList<JButton> answerButtons) {
+        // clear question field
+        questionField.setText("");
+
+        // reset buttons
+        for (JButton answerButton : answerButtons) {
+            answerButton.setEnabled(true);
+            answerButton.setForeground(new JButton().getForeground());
+            answerButton.setFocusable(false);
+        }
+
+        ArrayList<String> gameSet = makeGameSet(mode);
+
+        if (mode.equals("key")) {
+            questionField.setForeground(Color.BLUE);
+            questionField.setFont(new Font((questionField.getFont()).getName(), Font.BOLD, 48));
+        } else if (mode.equals("value")) {
+            questionField.setForeground(Color.BLACK);
+            questionField.setFont(new Font((questionField.getFont()).getName(), Font.ITALIC, 20));
+        }
+
+        // retrieve the questionand the correct answer from the game set
+        String question = gameSet.get(0);
+        String correctAnswer = gameSet.get(1);
+
+        // display the question
+        questionField.setText(question);
+
+        // since the correct answer is always the second item, the answers need to be
+        // shuffled
+        Collections.shuffle(gameSet.subList(1, gameSet.size()));
+
+        // display the answers onto buttons
+        for (int i = 1; i < gameSet.size(); i++) {
+            answerButtons.get(i - 1).setText(gameSet.get(i));
+        }
+
+        // add an ActionListener for each button
+        for (JButton answerButton : answerButtons) {
+            answerButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    // disable all buttons after answer has been chosen
+                    for (int i = 0; i < answerButtons.size(); i++) {
+                        answerButtons.get(i).setEnabled(false);
+                    }
+
+                    // retrieve the chosen button and enable it
+                    JButton chosen = (JButton) e.getSource();
+                    chosen.setEnabled(true);
+
+                    if ((chosen.getText()).equals(correctAnswer)) {
+                        // correct: green
+                        chosen.setForeground(new Color(0, 153, 0));
+                    } else {
+                        // incorrect: red
+                        chosen.setForeground(new Color(204, 0, 0));
+
+                        // color the button of the correct answer
+                        for (JButton answerButton : answerButtons) {
+                            if ((answerButton.getText()).equals(correctAnswer)) {
+                                answerButton.setEnabled(true);
+                                answerButton.setForeground(new Color(0, 153, 0));
+                            }
+                        }
+                    }
+
+                    for (JButton answerButton : answerButtons) {
+                        // remove ActionListener(s) so the answer can no longer be changed
+                        // also to prevent accidentally stacking ActionListeners when initializing a new
+                        // game
+                        for (ActionListener al : answerButton.getActionListeners()) {
+                            answerButton.removeActionListener(al);
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    private ArrayList<String> makeGameSet(String mode) {
+        ArrayList<String> gameSet = new ArrayList<>();
+        int questionIndex = random.nextInt(d.size());
+
+        if (mode.equals("key")) {
+            // retrieve a slang to be the question
+            String question = keyList.get(questionIndex);
+
+            // retrieve this slang's definitions
+            // if the slang has multiple definitions, pick a random one to be the correct
+            // answer
+            ArrayList<String> defsOfQuestion = d.get(question);
+            int questionDefIndex = random.nextInt(defsOfQuestion.size());
+            String correctAnswer = defsOfQuestion.get(questionDefIndex);
+
+            // add the question and the correct answer to the game set
+            gameSet.add(question);
+            gameSet.add(correctAnswer);
+
+            // get a definition from three other random words
+            for (int i = 0; i < 3; i++) {
+                int answerIndex = -1;
+
+                do {
+                    answerIndex = random.nextInt(d.size());
+                } while (answerIndex == questionIndex);
+
+                ArrayList<String> defsOfAnswer = d.get(keyList.get(answerIndex));
+
+                // if the slang has multiple definitions, pick a random one
+                int answerDefIndex = random.nextInt(defsOfAnswer.size());
+                String incorrectAnswer = defsOfAnswer.get(answerDefIndex);
+
+                gameSet.add(incorrectAnswer);
+            }
+        } else if (mode.equals("value")) {
+            // retrieve a slang to be the correct answer
+            String correctAnswer = keyList.get(questionIndex);
+
+            // retrieve this slang's definitions
+            // if the slang has multiple definitions, pick a random one to be the question
+            ArrayList<String> defsOfCorrectAnswer = d.get(correctAnswer);
+            int correctAnswerDefIndex = random.nextInt(defsOfCorrectAnswer.size());
+            String question = defsOfCorrectAnswer.get(correctAnswerDefIndex);
+
+            // add the question and the correct answer to the game set
+            gameSet.add(question);
+            gameSet.add(correctAnswer);
+
+            // get three more random slangs
+            for (int i = 0; i < 3; i++) {
+                int answerIndex = -1;
+
+                do {
+                    answerIndex = random.nextInt(d.size());
+                } while (answerIndex == questionIndex);
+
+                String incorrectAnswer = keyList.get(answerIndex);
+                gameSet.add(incorrectAnswer);
+            }
+        }
+
+        return gameSet;
+    }
+
+    private JComponent makeTextPanel(String text) {
         JPanel panel = new JPanel(false);
         JLabel filler = new JLabel(text);
         filler.setHorizontalAlignment(JLabel.CENTER);
@@ -737,7 +923,7 @@ public class DictionaryDisplay extends JPanel {
 
     // create a JFrame to host components
     private static void createAndShowGUI() {
-        JFrame frame = new JFrame("Slang Dictionary");
+        frame = new JFrame("Slang dictionary");
         frame.setSize(new Dimension(900, 700));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
@@ -750,18 +936,24 @@ public class DictionaryDisplay extends JPanel {
             }
         });
 
-        frame.add(new DictionaryDisplay(), BorderLayout.CENTER);
+        DictionaryDisplay dd = new DictionaryDisplay();
+        dd.getFont().deriveFont(13f);
+
+        frame.add(dd, BorderLayout.CENTER);
 
         frame.setVisible(true);
     }
 
-    public static void setUIFont(javax.swing.plaf.FontUIResource f) {
-        java.util.Enumeration<Object> keys = UIManager.getDefaults().keys();
+    public static void setUIFontSize(int newSize) {
+        Enumeration<Object> keys = UIManager.getDefaults().keys();
         while (keys.hasMoreElements()) {
             Object key = keys.nextElement();
             Object value = UIManager.get(key);
-            if (value instanceof javax.swing.plaf.FontUIResource)
-                UIManager.put(key, f);
+            if (value != null
+                    && value instanceof javax.swing.plaf.FontUIResource) {
+                FontUIResource oldFont = (FontUIResource) value;
+                UIManager.put(key, oldFont.deriveFont((float) newSize));
+            }
         }
     }
 
@@ -771,7 +963,7 @@ public class DictionaryDisplay extends JPanel {
                 try {
                     // set system look and feel
                     UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-                    setUIFont(new FontUIResource("Segoe UI", Font.PLAIN, 13));
+                    setUIFontSize(13);
                 } catch (UnsupportedLookAndFeelException e) {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {
@@ -791,6 +983,8 @@ public class DictionaryDisplay extends JPanel {
         private final String placeholder;
         private boolean showPlaceholder;
 
+        // if isSearchField is true, add a DocumentListener to the text field to listen
+        // to user input and update the search result list accordingly
         public PlaceholderField(final String placeholder, boolean isSearchField) {
             super(placeholder);
 
@@ -868,9 +1062,9 @@ public class DictionaryDisplay extends JPanel {
 
             ArrayList<String> results = null;
 
-            if (mode.equals("key")) {
+            if (searchMode.equals("key")) {
                 results = d.searchSubstringByKey(searchTerm);
-            } else if (mode.equals("value")) {
+            } else if (searchMode.equals("value")) {
                 results = d.searchSubstringByDefinition(searchTerm);
             }
 
@@ -882,9 +1076,7 @@ public class DictionaryDisplay extends JPanel {
      * Adapted from @Bart Kiers on StackOverflow:
      * https://stackoverflow.com/a/1739037
      * 
-     * Create a JTextField with a placeholder. If the field is marked as a search
-     * field, add a DocumentLister to it to update the search results JList when the
-     * field's value changes.
+     * Create a JTextArea with a placeholder.
      */
     class PlaceholderArea extends JTextArea implements FocusListener {
         private final String placeholder;

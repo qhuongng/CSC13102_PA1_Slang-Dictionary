@@ -8,6 +8,10 @@ public class Dictionary {
         dictionary = new TreeMap<>();
     }
 
+    public int size() {
+        return dictionary.size();
+    }
+
     // since TreeMap does not support duplicates, updating a slang is essentially
     // adding it again, but with an updated value list
     public void add(String key, ArrayList<String> values) {

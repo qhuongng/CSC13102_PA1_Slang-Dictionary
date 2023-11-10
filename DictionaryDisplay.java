@@ -221,7 +221,7 @@ public class DictionaryDisplay extends JPanel {
                         if (key == null)
                             return;
 
-                        if (searchMode == "key") {
+                        if (searchMode.equals("key")) {
                             // enable edit and delete buttons
                             editButton.setEnabled(true);
                             deleteButton.setEnabled(true);
@@ -264,6 +264,10 @@ public class DictionaryDisplay extends JPanel {
 
                         // add the listener again
                         searchResults.addListSelectionListener(searchResultListener);
+
+                        // enable edit and delete buttons
+                        editButton.setEnabled(true);
+                        deleteButton.setEnabled(true);
                     } else if (searchMode.equals("value")) {
                         int n = searchResults.getModel().getSize();
 
@@ -277,6 +281,10 @@ public class DictionaryDisplay extends JPanel {
 
                         // if the definition pane scrolls, scroll back to the top
                         definition.setCaretPosition(0);
+
+                        // disable edit and delete buttons
+                        editButton.setEnabled(false);
+                        deleteButton.setEnabled(false);
                     }
                 } catch (BadLocationException ble) {
                     ble.printStackTrace();
@@ -497,21 +505,22 @@ public class DictionaryDisplay extends JPanel {
                 dialog.dispose();
 
                 // slang already exists
-                if (d.contains(key)) {
+                if (d.contains(key.toUpperCase())) {
                     int input = JOptionPane.showConfirmDialog(frame,
                             "This slang already exists. Do you want to update its definition?",
                             "Confirm slang update", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
                     if (input == 0) {
                         // OK
-                        ArrayList<String> defList = d.get(key);
-                        System.out.println(defList.size());
+                        ArrayList<String> defList = d.get(key.toUpperCase());
 
                         for (String value : values) {
                             defList.add(value.trim());
                         }
 
-                        d.replace(key, defList);
+                        d.replace(key.toUpperCase(), defList);
+                        searchResults.clearSelection();
+                        searchResults.setSelectedValue(key.toUpperCase(), true);
 
                         JOptionPane.showConfirmDialog(frame,
                                 "Slang updated successfully.", "Update slang complete",
@@ -522,12 +531,12 @@ public class DictionaryDisplay extends JPanel {
                     d.add(key.toUpperCase(), new ArrayList<String>(Arrays.asList(values)));
                     keyList = d.getKeyList();
                     searchResults.setListData(keyList.toArray(new String[keyList.size()]));
-                }
 
-                // show complete dialog
-                JOptionPane.showConfirmDialog(frame,
-                        "Slang added successfully.", "Add slang complete", JOptionPane.DEFAULT_OPTION,
-                        JOptionPane.PLAIN_MESSAGE);
+                    // show complete dialog
+                    JOptionPane.showConfirmDialog(frame,
+                            "Slang added successfully.", "Add slang complete", JOptionPane.DEFAULT_OPTION,
+                            JOptionPane.PLAIN_MESSAGE);
+                }
             }
         });
 
@@ -820,9 +829,6 @@ public class DictionaryDisplay extends JPanel {
         String question = gameSet.get(0);
         String correctAnswer = gameSet.get(1);
 
-        System.out.println(question);
-        System.out.println(gameSet.subList(1, gameSet.size()));
-
         // display the question
         questionField.setText(question);
 
@@ -848,8 +854,6 @@ public class DictionaryDisplay extends JPanel {
                     // retrieve the chosen button and enable it
                     JButton chosen = (JButton) e.getSource();
                     chosen.setEnabled(true);
-
-                    System.out.println(correctAnswer);
 
                     if ((chosen.getText()).equals(correctAnswer)) {
                         // correct: green
@@ -1013,7 +1017,7 @@ public class DictionaryDisplay extends JPanel {
         dd.getFont().deriveFont(13f);
 
         frame.add(dd, BorderLayout.CENTER);
-
+        frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
 

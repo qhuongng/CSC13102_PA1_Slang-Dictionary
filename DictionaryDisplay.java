@@ -785,6 +785,10 @@ public class DictionaryDisplay extends JPanel {
 
         // reset buttons
         for (JButton answerButton : answerButtons) {
+            for (ActionListener al : answerButton.getActionListeners()) {
+                answerButton.removeActionListener(al);
+            }
+
             answerButton.setEnabled(true);
             answerButton.setForeground(new JButton().getForeground());
             answerButton.setFocusable(false);
@@ -843,6 +847,8 @@ public class DictionaryDisplay extends JPanel {
                     // retrieve the chosen button and enable it
                     JButton chosen = (JButton) e.getSource();
                     chosen.setEnabled(true);
+
+                    System.out.println(correctAnswer);
 
                     if ((chosen.getText()).equals(correctAnswer)) {
                         // correct: green

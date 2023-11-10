@@ -57,8 +57,8 @@ public class DictionaryDisplay extends JPanel {
                 "View slang entries from dictionary");
         tabs.setMnemonicAt(0, KeyEvent.VK_1);
 
-        JComponent daily = makeTextPanel("Random slang");
-        tabs.addTab("Random slang", null, daily,
+        JComponent randomSlang = randomSlangPanel();
+        tabs.addTab("Random slang", null, randomSlang,
                 "View a random slang from the dictionary");
         tabs.setMnemonicAt(0, KeyEvent.VK_2);
 
@@ -216,6 +216,11 @@ public class DictionaryDisplay extends JPanel {
         ActionListener searchFieldListener = new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                // if the search term doesn't yield any result, hitting Enter will do nothing
+                if (searchResults.getModel().getSize() == 0) {
+                    return;
+                }
+
                 definition.setText("");
 
                 StyledDocument doc = definition.getStyledDocument();
@@ -225,20 +230,20 @@ public class DictionaryDisplay extends JPanel {
                 StyleConstants.setFontSize(sas, 24);
 
                 try {
-                    if (searchMode == "key") {
+                    if (searchMode.equals("key")) {
                         searchResults.setSelectedIndex(0);
                         String key = searchResults.getSelectedValue();
-                        displayDefinition(doc, sas, key, false);
-                    } else if (searchMode == "value") {
+                        displayDefinition(doc, sas, key, false, false);
+                    } else if (searchMode.equals("value")) {
                         int n = searchResults.getModel().getSize();
 
                         for (int i = 0; i < n - 1; i++) {
                             String entry = searchResults.getModel().getElementAt(i);
-                            displayDefinition(doc, sas, entry, true);
+                            displayDefinition(doc, sas, entry, true, false);
                         }
 
                         String entry = searchResults.getModel().getElementAt(n - 1);
-                        displayDefinition(doc, sas, entry, false);
+                        displayDefinition(doc, sas, entry, false, false);
                     }
                 } catch (BadLocationException ble) {
                     ble.printStackTrace();
@@ -259,26 +264,27 @@ public class DictionaryDisplay extends JPanel {
         searchFieldPane.add(searchModeSelector, BorderLayout.NORTH);
         searchFieldPane.add(searchField, BorderLayout.CENTER);
 
+        // create a search button
+        JButton searchButton = new JButton("Go");
+        searchButton.setFocusable(false);
+        searchButton.setPreferredSize(new Dimension(30, 30));
+        searchButton.setMargin(new Insets(0, 0, 0, 0));
+
         ActionListener cbListener = new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 @SuppressWarnings("unchecked")
                 JComboBox<String> cb = (JComboBox<String>) e.getSource();
-                String searchMode = (String) cb.getSelectedItem();
+                String currentSearchMode = (String) cb.getSelectedItem();
 
-                if (searchMode.equals("Search by slang")) {
+                if (currentSearchMode.equals("Search by slang")) {
                     searchMode = "key";
-                } else if (searchMode.equals("Search by slang definition")) {
+                    searchFieldPane.remove(searchButton);
+
+                } else if (currentSearchMode.equals("Search by slang definition")) {
                     searchMode = "value";
 
-                    // add a search button
-                    JButton searchButton = new JButton("Go");
-                    searchButton.setFocusable(false);
-                    searchButton.setPreferredSize(new Dimension(30, 30));
-                    searchButton.setMargin(new Insets(0, 0, 0, 0));
-
                     searchButton.addActionListener(searchFieldListener);
-
                     searchFieldPane.add(searchButton, BorderLayout.EAST);
                     searchFieldPane.revalidate();
                 }
@@ -295,7 +301,6 @@ public class DictionaryDisplay extends JPanel {
             public void valueChanged(ListSelectionEvent e) {
                 if (!e.getValueIsAdjusting()) {
                     definition.setText("");
-
                     StyledDocument doc = definition.getStyledDocument();
                     SimpleAttributeSet sas = new SimpleAttributeSet();
                     StyleConstants.setForeground(sas, Color.BLUE);
@@ -308,7 +313,7 @@ public class DictionaryDisplay extends JPanel {
                             return;
 
                         if (searchMode == "key") {
-                            displayDefinition(doc, sas, key, false);
+                            displayDefinition(doc, sas, key, false, false);
 
                             // enable edit and delete buttons
                             editButton.setEnabled(true);
@@ -387,7 +392,8 @@ public class DictionaryDisplay extends JPanel {
     }
 
     // display slang definitions
-    private void displayDefinition(Document doc, SimpleAttributeSet sas, String key, boolean multiple)
+    private void displayDefinition(Document doc, SimpleAttributeSet sas, String key, boolean multiple,
+            boolean inRandomMode)
             throws BadLocationException {
         doc.insertString(doc.getLength(), key + "\n", sas);
         doc.insertString(doc.getLength(), "_________________________\n", null);
@@ -402,14 +408,17 @@ public class DictionaryDisplay extends JPanel {
             doc.insertString(doc.getLength(), "\n\n\n=========================\n\n\n", null);
         }
 
-        // log the selected slang to history list
-        // if the entry was already in history, remove it and re-add the entry on top
-        if (history.contains(key)) {
-            history.remove(key);
-        }
+        // viewing slangs in the random screen will not log them to the history
+        if (!inRandomMode) {
+            // log the selected slang to history list
+            // if the entry was already in history, remove it and re-add the entry on top
+            if (history.contains(key)) {
+                history.remove(key);
+            }
 
-        history.push(key);
-        historyEntries.setListData(history.toArray(new String[history.size()]));
+            history.push(key);
+            historyEntries.setListData(history.toArray(new String[history.size()]));
+        }
     }
 
     private void addSlangDialog() {
@@ -912,13 +921,59 @@ public class DictionaryDisplay extends JPanel {
         return gameSet;
     }
 
-    private JComponent makeTextPanel(String text) {
-        JPanel panel = new JPanel(false);
-        JLabel filler = new JLabel(text);
-        filler.setHorizontalAlignment(JLabel.CENTER);
-        panel.setLayout(new GridLayout(1, 1));
-        panel.add(filler);
-        return panel;
+    // UI panel for the random slang view
+    private JComponent randomSlangPanel() {
+        int index = random.nextInt(d.size());
+
+        // create a text pane to display the slang
+        // create a JTextPane to display the selected slang's definition
+        JTextPane slangPane = new JTextPane();
+        slangPane.setEditable(false);
+        slangPane.setBorder(BorderFactory.createCompoundBorder(slangPane.getBorder(),
+                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
+
+        StyledDocument doc = slangPane.getStyledDocument();
+        SimpleAttributeSet sas = new SimpleAttributeSet();
+        StyleConstants.setForeground(sas, Color.BLUE);
+        StyleConstants.setBold(sas, true);
+        StyleConstants.setFontSize(sas, 24);
+
+        JButton anotherButton = new JButton("Another slang!");
+        anotherButton.setFocusable(false);
+        anotherButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                slangPane.setText("");
+
+                int newIndex;
+
+                do {
+                    newIndex = random.nextInt(d.size());
+                } while (newIndex == index);
+
+                try {
+                    displayDefinition(doc, sas, keyList.get(newIndex), false, true);
+                } catch (BadLocationException ble) {
+                    ble.printStackTrace();
+                }
+            }
+        });
+
+        JPanel rightPane = new JPanel(new BorderLayout());
+        rightPane.add(anotherButton, BorderLayout.SOUTH);
+
+        try {
+            displayDefinition(doc, sas, keyList.get(index), false, true);
+        } catch (BadLocationException ble) {
+            ble.printStackTrace();
+        }
+
+        JPanel mainPane = new JPanel(new BorderLayout(10, 10));
+        mainPane.setBorder(new EmptyBorder(10, 10, 10, 10));
+        mainPane.add(slangPane, BorderLayout.CENTER);
+        mainPane.add(rightPane, BorderLayout.EAST);
+
+        return mainPane;
     }
 
     // create a JFrame to host components

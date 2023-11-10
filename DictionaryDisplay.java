@@ -207,6 +207,36 @@ public class DictionaryDisplay extends JPanel {
         slangInfoPane.add(slangOptionPane, BorderLayout.NORTH);
         slangInfoPane.add(definitionScrollPane, BorderLayout.CENTER);
 
+        searchResults = new JList<>(keyList.toArray(new String[keyList.size()]));
+        JScrollPane resultScrollPane = new JScrollPane(searchResults);
+
+        ListSelectionListener searchResultListener = new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                if (!e.getValueIsAdjusting()) {
+                    definition.setText("");
+
+                    try {
+                        String key = searchResults.getSelectedValue();
+                        if (key == null)
+                            return;
+
+                        if (searchMode == "key") {
+                            // enable edit and delete buttons
+                            editButton.setEnabled(true);
+                            deleteButton.setEnabled(true);
+                        }
+
+                        displayDefinition(definition, key, false, false);
+                    } catch (BadLocationException ble) {
+                        ble.printStackTrace();
+                    }
+                }
+            }
+        };
+
+        searchResults.addListSelectionListener(searchResultListener);
+
         // create a search field with a search button
         PlaceholderField searchField = new PlaceholderField("Enter search terms...", true);
         searchField.setPreferredSize(new Dimension(225, 30));
@@ -223,27 +253,30 @@ public class DictionaryDisplay extends JPanel {
 
                 definition.setText("");
 
-                StyledDocument doc = definition.getStyledDocument();
-                SimpleAttributeSet sas = new SimpleAttributeSet();
-                StyleConstants.setForeground(sas, Color.BLUE);
-                StyleConstants.setBold(sas, true);
-                StyleConstants.setFontSize(sas, 24);
-
                 try {
                     if (searchMode.equals("key")) {
+                        // temporarily remove the JList listener to not trigger select event twice
+                        searchResults.removeListSelectionListener(searchResultListener);
+
                         searchResults.setSelectedIndex(0);
                         String key = searchResults.getSelectedValue();
-                        displayDefinition(doc, sas, key, false, false);
+                        displayDefinition(definition, key, false, false);
+
+                        // add the listener again
+                        searchResults.addListSelectionListener(searchResultListener);
                     } else if (searchMode.equals("value")) {
                         int n = searchResults.getModel().getSize();
 
                         for (int i = 0; i < n - 1; i++) {
                             String entry = searchResults.getModel().getElementAt(i);
-                            displayDefinition(doc, sas, entry, true, false);
+                            displayDefinition(definition, entry, true, false);
                         }
 
                         String entry = searchResults.getModel().getElementAt(n - 1);
-                        displayDefinition(doc, sas, entry, false, false);
+                        displayDefinition(definition, entry, false, false);
+
+                        // if the definition pane scrolls, scroll back to the top
+                        definition.setCaretPosition(0);
                     }
                 } catch (BadLocationException ble) {
                     ble.printStackTrace();
@@ -269,6 +302,7 @@ public class DictionaryDisplay extends JPanel {
         searchButton.setFocusable(false);
         searchButton.setPreferredSize(new Dimension(30, 30));
         searchButton.setMargin(new Insets(0, 0, 0, 0));
+        searchButton.addActionListener(searchFieldListener);
 
         ActionListener cbListener = new ActionListener() {
             @Override
@@ -279,12 +313,12 @@ public class DictionaryDisplay extends JPanel {
 
                 if (currentSearchMode.equals("Search by slang")) {
                     searchMode = "key";
-                    searchFieldPane.remove(searchButton);
 
+                    searchFieldPane.remove(searchButton);
+                    searchFieldPane.revalidate();
                 } else if (currentSearchMode.equals("Search by slang definition")) {
                     searchMode = "value";
 
-                    searchButton.addActionListener(searchFieldListener);
                     searchFieldPane.add(searchButton, BorderLayout.EAST);
                     searchFieldPane.revalidate();
                 }
@@ -292,41 +326,6 @@ public class DictionaryDisplay extends JPanel {
         };
 
         searchModeSelector.addActionListener(cbListener);
-
-        searchResults = new JList<>(keyList.toArray(new String[keyList.size()]));
-        JScrollPane resultScrollPane = new JScrollPane(searchResults);
-
-        searchResults.addListSelectionListener(new ListSelectionListener() {
-            @Override
-            public void valueChanged(ListSelectionEvent e) {
-                if (!e.getValueIsAdjusting()) {
-                    definition.setText("");
-                    StyledDocument doc = definition.getStyledDocument();
-                    SimpleAttributeSet sas = new SimpleAttributeSet();
-                    StyleConstants.setForeground(sas, Color.BLUE);
-                    StyleConstants.setBold(sas, true);
-                    StyleConstants.setFontSize(sas, 24);
-
-                    try {
-                        String key = searchResults.getSelectedValue();
-                        if (key == null)
-                            return;
-
-                        if (searchMode == "key") {
-                            displayDefinition(doc, sas, key, false, false);
-
-                            // enable edit and delete buttons
-                            editButton.setEnabled(true);
-                            deleteButton.setEnabled(true);
-                        } else if (searchMode == "value") {
-
-                        }
-                    } catch (BadLocationException ble) {
-                        ble.printStackTrace();
-                    }
-                }
-            }
-        });
 
         // create a button panel with a button to add new slangs and another to reset
         // the slang list
@@ -392,9 +391,14 @@ public class DictionaryDisplay extends JPanel {
     }
 
     // display slang definitions
-    private void displayDefinition(Document doc, SimpleAttributeSet sas, String key, boolean multiple,
-            boolean inRandomMode)
+    private void displayDefinition(JTextPane pane, String key, boolean multiple, boolean inRandomMode)
             throws BadLocationException {
+        StyledDocument doc = pane.getStyledDocument();
+        SimpleAttributeSet sas = new SimpleAttributeSet();
+        StyleConstants.setForeground(sas, Color.BLUE);
+        StyleConstants.setBold(sas, true);
+        StyleConstants.setFontSize(sas, 24);
+
         doc.insertString(doc.getLength(), key + "\n", sas);
         doc.insertString(doc.getLength(), "_________________________\n", null);
 
@@ -723,7 +727,6 @@ public class DictionaryDisplay extends JPanel {
                 JComboBox<String> cb = (JComboBox<String>) e.getSource();
                 String selectedGameMode = (String) cb.getSelectedItem();
 
-                // TODO: handle game mode switching
                 if (selectedGameMode.equals("Guess the slang")) {
                     gameMode = "key";
                 } else if (selectedGameMode.equals("Guess the definition")) {
@@ -792,14 +795,28 @@ public class DictionaryDisplay extends JPanel {
         if (mode.equals("key")) {
             questionField.setForeground(Color.BLUE);
             questionField.setFont(new Font((questionField.getFont()).getName(), Font.BOLD, 48));
+
+            // set the text style of answer buttons
+            for (JButton answerButton : answerButtons) {
+                answerButton.setFont(new Font(answerButton.getFont().getName(), Font.PLAIN, 13));
+            }
         } else if (mode.equals("value")) {
             questionField.setForeground(Color.BLACK);
-            questionField.setFont(new Font((questionField.getFont()).getName(), Font.ITALIC, 20));
+            questionField.setFont(new Font((questionField.getFont()).getName(), Font.PLAIN, 20));
+
+            // set the text style of answer buttons
+            for (JButton answerButton : answerButtons) {
+                answerButton.setFont(new Font(answerButton.getFont().getName(), Font.BOLD, 13));
+                answerButton.setForeground(Color.BLUE);
+            }
         }
 
-        // retrieve the questionand the correct answer from the game set
+        // retrieve the question and the correct answer from the game set
         String question = gameSet.get(0);
         String correctAnswer = gameSet.get(1);
+
+        System.out.println(question);
+        System.out.println(gameSet.subList(1, gameSet.size()));
 
         // display the question
         questionField.setText(question);
@@ -932,13 +949,7 @@ public class DictionaryDisplay extends JPanel {
         slangPane.setBorder(BorderFactory.createCompoundBorder(slangPane.getBorder(),
                 BorderFactory.createEmptyBorder(20, 20, 20, 20)));
 
-        StyledDocument doc = slangPane.getStyledDocument();
-        SimpleAttributeSet sas = new SimpleAttributeSet();
-        StyleConstants.setForeground(sas, Color.BLUE);
-        StyleConstants.setBold(sas, true);
-        StyleConstants.setFontSize(sas, 24);
-
-        JButton anotherButton = new JButton("Another slang!");
+        JButton anotherButton = new JButton("Another slang");
         anotherButton.setFocusable(false);
         anotherButton.addActionListener(new ActionListener() {
             @Override
@@ -952,7 +963,7 @@ public class DictionaryDisplay extends JPanel {
                 } while (newIndex == index);
 
                 try {
-                    displayDefinition(doc, sas, keyList.get(newIndex), false, true);
+                    displayDefinition(slangPane, keyList.get(newIndex), false, true);
                 } catch (BadLocationException ble) {
                     ble.printStackTrace();
                 }
@@ -963,7 +974,7 @@ public class DictionaryDisplay extends JPanel {
         rightPane.add(anotherButton, BorderLayout.SOUTH);
 
         try {
-            displayDefinition(doc, sas, keyList.get(index), false, true);
+            displayDefinition(slangPane, keyList.get(index), false, true);
         } catch (BadLocationException ble) {
             ble.printStackTrace();
         }

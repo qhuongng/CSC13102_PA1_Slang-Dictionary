@@ -32,8 +32,8 @@ public class DictionaryDisplay extends JPanel {
 
         // load data from files
         d = new Dictionary();
-        d.importSlangList("data/user_slang.txt");
 
+        d.importSlangList("data/user_slang.txt");
         history = new ArrayDeque<>();
         importHistory("data/history.txt");
 
@@ -365,7 +365,8 @@ public class DictionaryDisplay extends JPanel {
 
                     // show complete dialog
                     JOptionPane.showConfirmDialog(frame,
-                            "Original slang list restored successfully.", "Reset complete", JOptionPane.DEFAULT_OPTION);
+                            "Original slang list restored successfully.", "Reset complete", JOptionPane.DEFAULT_OPTION,
+                            JOptionPane.PLAIN_MESSAGE);
                 }
             }
         });
@@ -1016,16 +1017,13 @@ public class DictionaryDisplay extends JPanel {
         frame.setVisible(true);
     }
 
-    public static void setUIFontSize(int newSize) {
-        Enumeration<Object> keys = UIManager.getDefaults().keys();
+    public static void setUIFont(FontUIResource f) {
+        java.util.Enumeration<?> keys = UIManager.getDefaults().keys();
         while (keys.hasMoreElements()) {
             Object key = keys.nextElement();
             Object value = UIManager.get(key);
-            if (value != null
-                    && value instanceof javax.swing.plaf.FontUIResource) {
-                FontUIResource oldFont = (FontUIResource) value;
-                UIManager.put(key, oldFont.deriveFont((float) newSize));
-            }
+            if (value instanceof FontUIResource)
+                UIManager.put(key, f);
         }
     }
 
@@ -1035,7 +1033,7 @@ public class DictionaryDisplay extends JPanel {
                 try {
                     // set system look and feel
                     UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-                    setUIFontSize(13);
+                    setUIFont(new FontUIResource((new JLabel().getFont().getName()), Font.PLAIN, 13));
                 } catch (UnsupportedLookAndFeelException e) {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {

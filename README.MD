@@ -2,7 +2,7 @@
 
 This program is a project assignment from the course **CSC13102 - Java Application Development** at VNU-HCM, University of Science.
 
-The program implements Java's TreeMap as the primary data structure. Key features include viewing and searching for slangs by entry or by a definition keyword, adding new slangs to the dictionary, as well as editing and deleting slangs. Other features include a mode to view a random slang, two guessing-game modes, and storing search history.
+The program implements Java's TreeMap as the primary data structure and utilizes the Swing library for GUI design. Key features include viewing and searching for slangs by entry or by a definition keyword, adding new slangs to the dictionary, as well as editing and deleting slangs. Other features include a mode to view a random slang, two guessing-game modes, and storing search history.
 
 ## Installation
 

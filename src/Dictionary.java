@@ -1,3 +1,5 @@
+package src;
+
 import java.io.*;
 import java.util.*;
 
@@ -88,6 +90,9 @@ public class Dictionary {
             BufferedReader buffer = new BufferedReader(new FileReader(fname));
             String line = "";
 
+            // remove the first line
+            line = buffer.readLine();
+
             while ((line = buffer.readLine()) != null) {
                 String[] data = line.split("\\`");
 
@@ -147,9 +152,5 @@ public class Dictionary {
         }
 
         return keys;
-    }
-
-    public static void main(String args[]) {
-        // put test method calls here
     }
 }

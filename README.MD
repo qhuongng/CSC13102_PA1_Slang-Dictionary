@@ -39,7 +39,3 @@ The `.jar` file was built using JDK 19. Should the method above not work due to 
    ```
 
 Please ensure the `.jar` file is in the same directory as the `data` folder when executing.
-
-## License
-
-[MIT License](https://choosealicense.com/licenses/mit/)
